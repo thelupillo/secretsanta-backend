@@ -1,11 +1,8 @@
 import Router from '@koa/router';
-import { Context, Next } from 'koa';
-const router = new Router();
 
-router.all('/', async (ctx: Context, _next: Next) => {
-  ctx.body = JSON.stringify({
-    message: "Secret Santa"
-  });
-});
+const router: Router = new Router();
+
+import { apiV1Router } from './api/api.route';
+router.use(apiV1Router.routes(), apiV1Router.allowedMethods());
 
 export default router;
