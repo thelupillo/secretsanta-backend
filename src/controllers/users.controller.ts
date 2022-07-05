@@ -1,6 +1,6 @@
 import { Context, Next } from 'koa';
 import { StatusCodes } from 'http-status-codes';
-import { PrismaClientInitializationError } from '@prisma/client/runtime';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime';
 
 import { formatUsername } from '../utils/formats.util';
 import { isPasscode, isUsername } from '../utils/checks.util';
@@ -24,13 +24,11 @@ export const createUser = async (ctx: Context, _next: Next) => {
       select: {
         id: true,
         username: true,
-        passcode: false, // Exclude the passcode hash
-        createdAt: true,
-        updatedAt: true
+        passcode: false // Exclude the passcode hash
       }
     });
     ctx.status = StatusCodes.CREATED;
-  } catch (err: PrismaClientInitializationError | any) {
+  } catch (err: PrismaClientKnownRequestError | any) {
     switch (err.code) {
       case "P2002": // ErrorCode when there is a conflict (already exists)
         ctx.status = StatusCodes.CONFLICT;

@@ -16,4 +16,19 @@ model User {
   passcode  String   @db.VarChar(60)
   createdAt DateTime @default(now()) @db.Timestamptz()
   updatedAt DateTime @default(now()) @db.Timestamptz()
+
+  authSessions AuthSession[]
+
+  @@map("user")
+}
+
+model AuthSession {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id])
+  token  String @unique @map("token")
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  lastUsedAt DateTime @default(now()) @db.Timestamptz()
+
+  @@map("auth_session")
 }
