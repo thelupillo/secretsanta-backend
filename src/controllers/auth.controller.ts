@@ -6,8 +6,9 @@ import { isUsername, isPasscode } from '../utils/checks.util';
 import DB from '../services/db.service';
 import { formatUsername } from '../utils/formats.util';
 import { compareHash } from '../utils/crypt.util';
-import { signRefreshToken, signAccessToken } from '../utils/jwt.util';
-import { setTokenCookie } from '../utils/cookies.util';
+import { signRefreshToken, signAccessToken, verifyRefreshToken } from '../utils/jwt.util';
+import { setTokenCookie, getTokenCookie, clearTokenCookie } from '../utils/cookies.util';
+import { JwtPayload } from 'jsonwebtoken';
 
 export const loginUser = async (ctx: Context, _next: Next) => {
   const { username, passcode } = ctx.request.body;
@@ -77,4 +78,36 @@ export const loginUser = async (ctx: Context, _next: Next) => {
     },
     refreshToken
   };
+};
+
+export const logoutUser = async (ctx: Context, _next: Next) => {
+  const { refreshToken } = ctx.request.body;
+
+  var tokenPayload = undefined;
+  try {
+    tokenPayload = verifyRefreshToken(refreshToken);
+  } catch(error) {
+    ctx.status = StatusCodes.BAD_REQUEST;
+    return;
+  }
+
+  if (!refreshToken && !tokenPayload) {
+    ctx.status = StatusCodes.BAD_REQUEST;
+    return;
+  }
+
+  try {
+    await DB.getInstance().authSession.delete({
+      where: {
+        token: refreshToken
+      }
+    });
+  } catch (err) {
+    ctx.status = StatusCodes.INTERNAL_SERVER_ERROR;
+    console.error(err);
+    return;
+  }
+
+  clearTokenCookie(ctx.cookies);
+  ctx.status = StatusCodes.OK;
 };
