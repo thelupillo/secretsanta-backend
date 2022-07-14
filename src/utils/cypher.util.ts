@@ -2,7 +2,7 @@ import Bcrypt from 'bcrypt';
 
 const saltRounds: number = 10;
 
-export const genHash = async (plainText: string): Promise<string> => {
+export const generateHash = async (plainText: string): Promise<string> => {
   return await Bcrypt.hash(plainText, saltRounds);
 };
 

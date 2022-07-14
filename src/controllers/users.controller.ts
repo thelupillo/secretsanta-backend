@@ -5,7 +5,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime';
 import { formatUsername } from '../utils/formats.util';
 import { isPasscode, isUsername } from '../utils/checks.util';
 import DB from '../services/db.service';
-import { genHash } from '../utils/crypt.util';
+import { generateHash } from '../utils/cypher.util';
 
 export const createUser = async (ctx: Context, _next: Next) => {
   const { username, passcode } = ctx.request.body;
@@ -19,7 +19,7 @@ export const createUser = async (ctx: Context, _next: Next) => {
     ctx.body = await DB.getInstance().user.create({
       data: {
         username: formatUsername(username),
-        passcode: await genHash(passcode)
+        passcode: await generateHash(passcode)
       },
       select: {
         id: true,

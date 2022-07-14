@@ -5,10 +5,9 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime';
 import { isUsername, isPasscode } from '../utils/checks.util';
 import DB from '../services/db.service';
 import { formatUsername } from '../utils/formats.util';
-import { compareHash } from '../utils/crypt.util';
+import { compareHash } from '../utils/cypher.util';
 import { signRefreshToken, signAccessToken, verifyRefreshToken } from '../utils/jwt.util';
-import { setTokenCookie, getTokenCookie, clearTokenCookie } from '../utils/cookies.util';
-import { JwtPayload } from 'jsonwebtoken';
+import { setTokenCookie, clearTokenCookie } from '../utils/cookies.util';
 
 export const loginUser = async (ctx: Context, _next: Next) => {
   const { username, passcode } = ctx.request.body;
