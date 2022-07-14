@@ -1,5 +1,8 @@
 import { Context, Next } from 'koa';
 import { StatusCodes } from 'http-status-codes';
+import { JwtPayload } from 'jsonwebtoken';
+import { AuthSession } from '@prisma/client';
+import { TokenPayload } from '../types';
 
 import { isUsername, isPasscode } from '../utils/checks.util';
 import DB from '../services/db.service';
@@ -18,7 +21,7 @@ export const loginUser = async (ctx: Context, _next: Next) => {
   }
 
   // Search the user in the database
-  var user = null;
+  let user = undefined;
   try {
     user = await DB.getInstance().user.findUnique({
       where: {
@@ -41,10 +44,10 @@ export const loginUser = async (ctx: Context, _next: Next) => {
     return;
   }
 
-  const payloadToken = { id: user.id };
-  const refreshToken = signRefreshToken(payloadToken);
+  const tokenPayload: TokenPayload = { userId: user.id };
+  const refreshToken = signRefreshToken(tokenPayload);
 
-  // Save the session (token) in the database
+  // Save the session (refreshToken) in the database
   try {
     await DB.getInstance().authSession.create({
       data: {
@@ -57,7 +60,7 @@ export const loginUser = async (ctx: Context, _next: Next) => {
     return;
   }
 
-  setTokenCookie(ctx.cookies, signAccessToken(payloadToken));
+  setTokenCookie(ctx.cookies, signAccessToken(tokenPayload));
 
   ctx.body = {
     user: {
@@ -71,19 +74,20 @@ export const loginUser = async (ctx: Context, _next: Next) => {
 export const logoutUser = async (ctx: Context, _next: Next) => {
   const { refreshToken } = ctx.request.body;
 
-  var tokenPayload = undefined;
+  if (!refreshToken) {
+    ctx.status = StatusCodes.BAD_REQUEST;
+    return;
+  }
+
+  // Verify that the refresh token is valid
   try {
-    tokenPayload = verifyRefreshToken(refreshToken);
+    verifyRefreshToken(refreshToken);
   } catch(error) {
     ctx.status = StatusCodes.BAD_REQUEST;
     return;
   }
 
-  if (!refreshToken && !tokenPayload) {
-    ctx.status = StatusCodes.BAD_REQUEST;
-    return;
-  }
-
+  // Delete the session (refreshToken) from the database
   try {
     await DB.getInstance().authSession.delete({
       where: {
@@ -96,5 +100,53 @@ export const logoutUser = async (ctx: Context, _next: Next) => {
   }
 
   clearTokenCookie(ctx.cookies);
+  ctx.status = StatusCodes.OK;
+};
+
+export const refreshAuth = async (ctx: Context, _next: Next) => {
+  const { refreshToken } = ctx.request.body;
+
+  if (!refreshToken) {
+    ctx.status = StatusCodes.BAD_REQUEST;
+    return;
+  }
+
+  // Verify that the refreshToken is valid and get the payload
+  let refreshTokenPayload: TokenPayload | JwtPayload | undefined = undefined;
+  try {
+    refreshTokenPayload = verifyRefreshToken(refreshToken);
+  } catch(error) {
+    ctx.status = StatusCodes.BAD_REQUEST;
+    return;
+  }
+
+  if (!refreshTokenPayload) {
+    ctx.status = StatusCodes.BAD_REQUEST;
+    return;
+  } 
+
+  // Verify that the session (refreshToken) still exists
+  let authSession: AuthSession | null;
+  try {
+    authSession = await DB.getInstance().authSession.findFirst({
+      where: {
+        AND: {
+          userId: refreshTokenPayload.userId,
+          token: refreshToken
+        }
+      }
+    });
+  } catch (error) {
+    ctx.status = prismaErrorHandler(error);
+    return;
+  }
+
+  if (!authSession) {
+    ctx.status = StatusCodes.BAD_REQUEST;
+    return;
+  } 
+
+  // Sign a new access token and set a cookie for it
+  setTokenCookie(ctx.cookies, signAccessToken({ userId: refreshTokenPayload.userId }));
   ctx.status = StatusCodes.OK;
 };
