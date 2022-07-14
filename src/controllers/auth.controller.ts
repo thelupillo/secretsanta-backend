@@ -1,6 +1,5 @@
 import { Context, Next } from 'koa';
 import { StatusCodes } from 'http-status-codes';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime';
 
 import { isUsername, isPasscode } from '../utils/checks.util';
 import DB from '../services/db.service';
@@ -8,6 +7,7 @@ import { formatUsername } from '../utils/formats.util';
 import { compareHash } from '../utils/cypher.util';
 import { signRefreshToken, signAccessToken, verifyRefreshToken } from '../utils/jwt.util';
 import { setTokenCookie, clearTokenCookie } from '../utils/cookies.util';
+import { prismaErrorHandler } from '../utils/prisma.util';
 
 export const loginUser = async (ctx: Context, _next: Next) => {
   const { username, passcode } = ctx.request.body;
@@ -30,15 +30,14 @@ export const loginUser = async (ctx: Context, _next: Next) => {
         passcode: true
       }
     });
-  } catch (err) {
-    ctx.status = StatusCodes.INTERNAL_SERVER_ERROR;
-    console.error(err);
+  } catch (error) {
+    ctx.status = prismaErrorHandler(error);
     return;
   }
 
   // Validate credentials
   if (!user || !await compareHash(passcode, user.passcode)) {
-    ctx.status = StatusCodes.NOT_FOUND;
+    ctx.status = StatusCodes.BAD_REQUEST;
     return;
   }
 
@@ -53,18 +52,8 @@ export const loginUser = async (ctx: Context, _next: Next) => {
         token: refreshToken
       }
     });
-  } catch (err: PrismaClientKnownRequestError | any) {
-    // TODO: Add an error handler function to manage all kind of errors
-    switch (err.code) {
-      case "P2002": // ErrorCode when there is a conflict (already exists)
-        ctx.status = StatusCodes.CONFLICT;
-        break;
-
-      default:
-        ctx.status = StatusCodes.INTERNAL_SERVER_ERROR;
-        console.error(err);
-        break;
-    }
+  } catch (error) {
+    ctx.status = prismaErrorHandler(error);
     return;
   }
 
@@ -101,9 +90,8 @@ export const logoutUser = async (ctx: Context, _next: Next) => {
         token: refreshToken
       }
     });
-  } catch (err) {
-    ctx.status = StatusCodes.INTERNAL_SERVER_ERROR;
-    console.error(err);
+  } catch (error) {
+    ctx.status = prismaErrorHandler(error);
     return;
   }
 

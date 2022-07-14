@@ -1,11 +1,11 @@
 import { Context, Next } from 'koa';
 import { StatusCodes } from 'http-status-codes';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime';
 
 import { formatUsername } from '../utils/formats.util';
 import { isPasscode, isUsername } from '../utils/checks.util';
 import DB from '../services/db.service';
 import { generateHash } from '../utils/cypher.util';
+import { prismaErrorHandler } from '../utils/prisma.util';
 
 export const createUser = async (ctx: Context, _next: Next) => {
   const { username, passcode } = ctx.request.body;
@@ -28,17 +28,8 @@ export const createUser = async (ctx: Context, _next: Next) => {
       }
     });
     ctx.status = StatusCodes.CREATED;
-  } catch (err: PrismaClientKnownRequestError | any) {
-    switch (err.code) {
-      case "P2002": // ErrorCode when there is a conflict (already exists)
-        ctx.status = StatusCodes.CONFLICT;
-        break;
-
-      default:
-        ctx.status = StatusCodes.INTERNAL_SERVER_ERROR;
-        console.error(err);
-        break;
-    }
+  } catch (error) {
+    ctx.status = prismaErrorHandler(error);
     return;
   }
 };
