@@ -17,18 +17,46 @@ model User {
   createdAt DateTime @default(now()) @db.Timestamptz()
   updatedAt DateTime @default(now()) @db.Timestamptz()
 
-  authSessions AuthSession[]
+  authSessions           AuthSession[]
+  lotteriesCreated       Lottery[]
+  lotteriesParticipating LotteryParticipant[]
 
   @@map("user")
 }
 
 model AuthSession {
-  id     String @id @default(uuid()) @db.Uuid
-  userId String @map("user_id") @db.Uuid
-  user   User   @relation(fields: [userId], references: [id])
-  token  String @unique @map("token")
-  createdAt DateTime @default(now()) @db.Timestamptz()
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id])
+  token      String   @unique @map("token")
+  createdAt  DateTime @default(now()) @db.Timestamptz()
   lastUsedAt DateTime @default(now()) @db.Timestamptz()
 
   @@map("auth_session")
+}
+
+model Lottery {
+  id         String   @id @db.VarChar(12)
+  name       String   @db.VarChar(64)
+  creatorId  String   @map("creator_id") @db.Uuid
+  creator    User     @relation(fields: [creatorId], references: [id])
+  isRunning  Boolean  @default(false) @db.Boolean
+  isFinished Boolean  @default(false) @db.Boolean
+  createdAt  DateTime @default(now()) @db.Timestamptz()
+  updatedAt  DateTime @default(now()) @db.Timestamptz()
+
+  participants LotteryParticipant[]
+
+  @@map("lottery")
+}
+
+model LotteryParticipant {
+  id        String   @id @default(uuid()) @db.Uuid
+  lotteryId String   @map("lottery_id") @db.VarChar()
+  lottery   Lottery  @relation(fields: [lotteryId], references: [id])
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now()) @db.Timestamptz()
+
+  @@map("lottery_participant")
 }

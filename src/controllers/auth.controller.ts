@@ -125,10 +125,9 @@ export const refreshAuth = async (ctx: Context, _next: Next) => {
     return;
   } 
 
-  // Verify that the session (refreshToken) still exists
-  let authSession: AuthSession | null;
   try {
-    authSession = await DB.getInstance().authSession.findFirst({
+    // Verify that the session (refreshToken) still exists
+    const authSession = await DB.getInstance().authSession.findFirst({
       where: {
         AND: {
           userId: refreshTokenPayload.userId,
@@ -136,15 +135,24 @@ export const refreshAuth = async (ctx: Context, _next: Next) => {
         }
       }
     });
+    if (!authSession) {
+      ctx.status = StatusCodes.BAD_REQUEST;
+      return;
+    }
+
+    // Update the lastUsedAt value
+    await DB.getInstance().authSession.update({
+      data: {
+        lastUsedAt: new Date()
+      },
+      where: {
+        id: authSession.id
+      }
+    });
   } catch (error) {
     ctx.status = prismaErrorHandler(error);
     return;
   }
-
-  if (!authSession) {
-    ctx.status = StatusCodes.BAD_REQUEST;
-    return;
-  } 
 
   // Sign a new access token and set a cookie for it
   setTokenCookie(ctx.cookies, signAccessToken({ userId: refreshTokenPayload.userId }));

@@ -7,3 +7,6 @@ apiV1Router.use(authRouter.routes(), authRouter.allowedMethods());
 
 import usersRouter from './v1/users.route';
 apiV1Router.use(usersRouter.routes(), usersRouter.allowedMethods());
+
+import lotteriesRouter from './v1/lotteries.route';
+apiV1Router.use(lotteriesRouter.routes(), lotteriesRouter.allowedMethods());
